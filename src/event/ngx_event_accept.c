@@ -68,12 +68,15 @@ ngx_event_accept(ngx_event_t *ev)
             s = accept(lc->fd, (struct sockaddr *) sa, &socklen);
         }
 #else
+        // 1. 处理 accept, 接受一个用户请求
         s = accept(lc->fd, (struct sockaddr *) sa, &socklen);
 #endif
 
+        // 2. 如果错误
         if (s == (ngx_socket_t) -1) {
             err = ngx_socket_errno;
-
+                
+            // 直接返回，准备下次重试
             if (err == NGX_EAGAIN) {
                 ngx_log_debug0(NGX_LOG_DEBUG_EVENT, ev->log, err,
                                "accept() not ready");
@@ -142,6 +145,7 @@ ngx_event_accept(ngx_event_t *ev)
         ngx_accept_disabled = ngx_cycle->connection_n / 8
                               - ngx_cycle->free_connection_n;
 
+        // 3. 利用 socket 获取一个 free conneciton
         c = ngx_get_connection(s, ev->log);
 
         if (c == NULL) {
@@ -159,6 +163,8 @@ ngx_event_accept(ngx_event_t *ev)
         (void) ngx_atomic_fetch_add(ngx_stat_active, 1);
 #endif
 
+        // connection要准备开始正式工作了
+        // 1. 分配一个Pool
         c->pool = ngx_create_pool(ls->pool_size, ev->log);
         if (c->pool == NULL) {
             ngx_close_accepted_connection(c);

@@ -19,6 +19,7 @@ static ngx_rbtree_node_t  ngx_event_timer_sentinel;
  * a minimum timer value only
  */
 
+// 1. 初始化一个红黑树
 ngx_int_t
 ngx_event_timer_init(ngx_log_t *log)
 {
@@ -29,6 +30,7 @@ ngx_event_timer_init(ngx_log_t *log)
 }
 
 
+// 2. 返回还有多长时间会触发一个timer事件，如果没有node, 则返回无穷大
 ngx_msec_t
 ngx_event_find_timer(void)
 {
@@ -65,20 +67,24 @@ ngx_event_expire_timers(void)
             return;
         }
 
+        // 1. 获取最小的节点
         node = ngx_rbtree_min(root, sentinel);
 
         /* node->key > ngx_current_time */
 
+        // 2. 如果没有过期的，则结束
         if ((ngx_msec_int_t) (node->key - ngx_current_msec) > 0) {
             return;
         }
-
+        
+        // 2. 获取Event数据
         ev = (ngx_event_t *) ((char *) node - offsetof(ngx_event_t, timer));
 
         ngx_log_debug2(NGX_LOG_DEBUG_EVENT, ev->log, 0,
                        "event timer del: %d: %M",
                        ngx_event_ident(ev->data), ev->timer.key);
 
+        // 3.. 从rb中删除: event
         ngx_rbtree_delete(&ngx_event_timer_rbtree, &ev->timer);
 
 #if (NGX_DEBUG)
@@ -91,7 +97,7 @@ ngx_event_expire_timers(void)
 
         ev->timedout = 1;
 
-        // 指定: rb tree中的Event
+        // 4. 指定: rb tree中的Event
         ev->handler(ev);
     }
 }
@@ -116,6 +122,7 @@ ngx_event_cancel_timers(void)
 
         ev = (ngx_event_t *) ((char *) node - offsetof(ngx_event_t, timer));
 
+        // 删除 time node, 直到删除完毕或者碰到第一个不可删除的node
         if (!ev->cancelable) {
             return;
         }

@@ -1065,13 +1065,18 @@ ngx_get_connection(ngx_socket_t s, ngx_log_t *log)
         return NULL;
     }
 
+    // 1. 从 ngx_cycle中获取一个  free connection
+    // free_connection 只是一个数据结构，防止内存的频繁分配和释放
+    //
     ngx_cycle->free_connections = c->data;
     ngx_cycle->free_connection_n--;
 
+    // 2. 关联: socket 和 connection
     if (ngx_cycle->files && ngx_cycle->files[s] == NULL) {
         ngx_cycle->files[s] = c;
     }
-
+    
+    // 重新初始化: connection, 保留: rev, wev, fd, 和 log
     rev = c->read;
     wev = c->write;
 
@@ -1084,6 +1089,7 @@ ngx_get_connection(ngx_socket_t s, ngx_log_t *log)
 
     instance = rev->instance;
 
+    // 这个有什么作用呢?
     ngx_memzero(rev, sizeof(ngx_event_t));
     ngx_memzero(wev, sizeof(ngx_event_t));
 

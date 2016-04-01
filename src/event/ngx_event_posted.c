@@ -15,6 +15,7 @@ ngx_queue_t  ngx_posted_events;
 
 
 // 
+// 获取 posted 队列中的 event, 从队列中删除，并且执行对应的 handler
 //
 void
 ngx_event_process_posted(ngx_cycle_t *cycle, ngx_queue_t *posted)

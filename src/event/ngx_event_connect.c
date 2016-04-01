@@ -29,6 +29,7 @@ ngx_event_connect_peer(ngx_peer_connection_t *pc)
 
     type = (pc->type ? pc->type : SOCK_STREAM);
 
+    // 1. 创建一个 socket
     s = ngx_socket(pc->sockaddr->sa_family, type, 0);
 
     ngx_log_debug2(NGX_LOG_DEBUG_EVENT, pc->log, 0, "%s socket %d",
@@ -41,6 +42,7 @@ ngx_event_connect_peer(ngx_peer_connection_t *pc)
     }
 
 
+    // 2. 获取一个connection
     c = ngx_get_connection(s, pc->log);
 
     if (c == NULL) {
@@ -124,6 +126,7 @@ ngx_event_connect_peer(ngx_peer_connection_t *pc)
     ngx_log_debug3(NGX_LOG_DEBUG_EVENT, pc->log, 0,
                    "connect to %V, fd:%d #%uA", pc->name, s, c->number);
 
+    // 将socket连接到pc的sockaddr中
     rc = connect(s, pc->sockaddr, pc->socklen);
 
     if (rc == -1) {

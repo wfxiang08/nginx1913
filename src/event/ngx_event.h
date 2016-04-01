@@ -174,7 +174,9 @@ struct ngx_event_aio_s {
 
 #endif
 
-// 记录了各种: EventAction
+//
+// 记录了各种: EventAction, 具体的实现参考: event/modules 中的任何一个, 在configure是选择
+//
 typedef struct {
     ngx_int_t  (*add)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
     ngx_int_t  (*del)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
