@@ -189,6 +189,9 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     ngx_queue_init(&cycle->reusable_connections_queue);
 
 
+    
+    // 配置文件的处理
+    // XXX: conf_ctx 首先是一个指针数组
     cycle->conf_ctx = ngx_pcalloc(pool, ngx_max_module * sizeof(void *));
     if (cycle->conf_ctx == NULL) {
         ngx_destroy_pool(pool);
@@ -223,6 +226,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     }
 
 
+    // 每一个Core Module 的Context是什么东西?
     for (i = 0; cycle->modules[i]; i++) {
         if (cycle->modules[i]->type != NGX_CORE_MODULE) {
             continue;
@@ -232,11 +236,14 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
 
         // 创建: conf
         if (module->create_conf) {
+            // 对于CoreModule, 通过它的Context 可以获取 create_conf, init_conf等函数
             rv = module->create_conf(cycle);
             if (rv == NULL) {
                 ngx_destroy_pool(pool);
                 return NULL;
             }
+            
+            // 然后通过: conf_ctx 来保存这些 context
             cycle->conf_ctx[cycle->modules[i]->index] = rv;
         }
     }
@@ -308,9 +315,11 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
 
         // 2. 调用: init_conf
         if (module->init_conf) {
-            if (module->init_conf(cycle,
-                                  cycle->conf_ctx[cycle->modules[i]->index])
-                == NGX_CONF_ERROR)
+            // 注意初始化 conf 时这些参数放在什么地方，别是是 ctx从哪儿来
+            // 需要区分的是:
+            // 每个module对有自己的context(纯静态代码)
+            //           也有相关的context(大部分来自配置文件)
+            if (module->init_conf(cycle, cycle->conf_ctx[cycle->modules[i]->index]) == NGX_CONF_ERROR)
             {
                 environ = senv;
                 ngx_destroy_cycle_pools(&conf);
@@ -323,6 +332,8 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
         return cycle;
     }
 
+    // 如何获取nginx的配置信息?
+    // 主要看该配置出现在哪个模块中? 然后获取对应模块的 ctx， 再读取其中的配置信息
     ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
     if (ngx_test_config) {

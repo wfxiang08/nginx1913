@@ -22,6 +22,7 @@ struct ngx_http_upstream_rr_peer_s {
     ngx_str_t                       name;
     ngx_str_t                       server;
 
+    // 三个不同的weight各自的作用?
     ngx_int_t                       current_weight;
     ngx_int_t                       effective_weight;
     ngx_int_t                       weight;
@@ -52,6 +53,8 @@ struct ngx_http_upstream_rr_peer_s {
 
 typedef struct ngx_http_upstream_rr_peers_s  ngx_http_upstream_rr_peers_t;
 
+// ngx_http_upstream_rr_peer_t
+// ngx_http_upstream_rr_peers_t
 struct ngx_http_upstream_rr_peers_s {
     ngx_uint_t                      number;
 
@@ -68,9 +71,8 @@ struct ngx_http_upstream_rr_peers_s {
 
     ngx_str_t                      *name;
 
-    ngx_http_upstream_rr_peers_t   *next;
-
-    ngx_http_upstream_rr_peer_t    *peer;
+    ngx_http_upstream_rr_peers_t   *next;  // 指向其他组的peers(一般是backup, backup之后就没有了)
+    ngx_http_upstream_rr_peer_t    *peer;  // 记录当前组的peers
 };
 
 

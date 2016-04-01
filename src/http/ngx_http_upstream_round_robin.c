@@ -28,15 +28,14 @@ static void ngx_http_upstream_empty_save_session(ngx_peer_connection_t *pc,
 
 
 ngx_int_t
-ngx_http_upstream_init_round_robin(ngx_conf_t *cf,
-    ngx_http_upstream_srv_conf_t *us)
-{
+ngx_http_upstream_init_round_robin(ngx_conf_t *cf,  ngx_http_upstream_srv_conf_t *us)  {
     ngx_url_t                      u;
     ngx_uint_t                     i, j, n, w;
     ngx_http_upstream_server_t    *server;
     ngx_http_upstream_rr_peer_t   *peer, **peerp;
     ngx_http_upstream_rr_peers_t  *peers, *backup;
 
+    //
     us->peer.init = ngx_http_upstream_init_round_robin_peer;
 
     if (us->servers) {
@@ -264,6 +263,7 @@ ngx_http_upstream_init_round_robin_peer(ngx_http_request_t *r,
         n = rrp->peers->next->number;
     }
 
+    // 1. 初始化: tried
     if (n <= 8 * sizeof(uintptr_t)) {
         rrp->tried = &rrp->data;
         rrp->data = 0;
@@ -277,6 +277,7 @@ ngx_http_upstream_init_round_robin_peer(ngx_http_request_t *r,
         }
     }
 
+    // 2. 如何使用: round robin算法呢?
     r->upstream->peer.get = ngx_http_upstream_get_round_robin_peer;
     r->upstream->peer.free = ngx_http_upstream_free_round_robin_peer;
     r->upstream->peer.tries = ngx_http_upstream_tries(rrp->peers);
@@ -304,6 +305,7 @@ ngx_http_upstream_create_round_robin_peer(ngx_http_request_t *r,
     ngx_http_upstream_rr_peers_t      *peers;
     ngx_http_upstream_rr_peer_data_t  *rrp;
 
+    // 1. ngx_http_upstream_rr_peer_data_t 是和 request 关联的
     rrp = r->upstream->peer.data;
 
     if (rrp == NULL) {
@@ -315,13 +317,14 @@ ngx_http_upstream_create_round_robin_peer(ngx_http_request_t *r,
         r->upstream->peer.data = rrp;
     }
 
+    // 创建peers
     peers = ngx_pcalloc(r->pool, sizeof(ngx_http_upstream_rr_peers_t));
     if (peers == NULL) {
         return NGX_ERROR;
     }
 
-    peer = ngx_pcalloc(r->pool, sizeof(ngx_http_upstream_rr_peer_t)
-                                * ur->naddrs);
+    // 创建一个peer
+    peer = ngx_pcalloc(r->pool, sizeof(ngx_http_upstream_rr_peer_t) * ur->naddrs);
     if (peer == NULL) {
         return NGX_ERROR;
     }
@@ -330,6 +333,7 @@ ngx_http_upstream_create_round_robin_peer(ngx_http_request_t *r,
     peers->number = ur->naddrs;
     peers->name = &ur->host;
 
+    // 当个peer 和 多个peer的不同处理方式
     if (ur->sockaddr) {
         peer[0].sockaddr = ur->sockaddr;
         peer[0].socklen = ur->socklen;
@@ -389,13 +393,14 @@ ngx_http_upstream_create_round_robin_peer(ngx_http_request_t *r,
     rrp->peers = peers;
     rrp->current = NULL;
 
+    // 如果只用一个 long 就能表示，就没有必要 alloc
     if (rrp->peers->number <= 8 * sizeof(uintptr_t)) {
         rrp->tried = &rrp->data;
         rrp->data = 0;
 
     } else {
-        n = (rrp->peers->number + (8 * sizeof(uintptr_t) - 1))
-                / (8 * sizeof(uintptr_t));
+        // 将n对齐到 8 * sizeof(uintptr_t)
+        n = (rrp->peers->number + (8 * sizeof(uintptr_t) - 1)) / (8 * sizeof(uintptr_t));
 
         rrp->tried = ngx_pcalloc(r->pool, n * sizeof(uintptr_t));
         if (rrp->tried == NULL) {
@@ -403,6 +408,7 @@ ngx_http_upstream_create_round_robin_peer(ngx_http_request_t *r,
         }
     }
 
+    // 设置: peer的 get/free/tries
     r->upstream->peer.get = ngx_http_upstream_get_round_robin_peer;
     r->upstream->peer.free = ngx_http_upstream_free_round_robin_peer;
     r->upstream->peer.tries = ngx_http_upstream_tries(rrp->peers);
@@ -418,6 +424,7 @@ ngx_http_upstream_create_round_robin_peer(ngx_http_request_t *r,
 ngx_int_t
 ngx_http_upstream_get_round_robin_peer(ngx_peer_connection_t *pc, void *data)
 {
+    // 给定一个Connection 如何通过RR 获取 peer?
     ngx_http_upstream_rr_peer_data_t  *rrp = data;
 
     ngx_int_t                      rc;
@@ -432,9 +439,12 @@ ngx_http_upstream_get_round_robin_peer(ngx_peer_connection_t *pc, void *data)
     pc->connection = NULL;
 
     peers = rrp->peers;
+    
+    // 1. 对 peers 加锁
     ngx_http_upstream_rr_peers_wlock(peers);
 
     if (peers->single) {
+        // 1.1 如果只有一个peer, 则直接选择
         peer = peers->peer;
 
         if (peer->down) {
@@ -446,7 +456,7 @@ ngx_http_upstream_get_round_robin_peer(ngx_peer_connection_t *pc, void *data)
     } else {
 
         /* there are several peers */
-
+        // 通过round robin算法获取peer
         peer = ngx_http_upstream_get_peer(rrp);
 
         if (peer == NULL) {
@@ -458,27 +468,29 @@ ngx_http_upstream_get_round_robin_peer(ngx_peer_connection_t *pc, void *data)
                        peer, peer->current_weight);
     }
 
+    // 将peer connection信息传递给: peer connection
     pc->sockaddr = peer->sockaddr;
     pc->socklen = peer->socklen;
     pc->name = &peer->name;
 
     peer->conns++;
 
+    // 释放lock
     ngx_http_upstream_rr_peers_unlock(peers);
 
     return NGX_OK;
 
 failed:
-
+    
+    // 如果失败，则切换到下一个 peers
     if (peers->next) {
 
         ngx_log_debug0(NGX_LOG_DEBUG_HTTP, pc->log, 0, "backup servers");
 
-        rrp->peers = peers->next;
+        rrp->peers = peers->next; // next 只用一次(什么时候切换回原有的peers)
 
-        n = (rrp->peers->number + (8 * sizeof(uintptr_t) - 1))
-                / (8 * sizeof(uintptr_t));
-
+        // 清空: tries
+        n = (rrp->peers->number + (8 * sizeof(uintptr_t) - 1)) / (8 * sizeof(uintptr_t));
         for (i = 0; i < n; i++) {
              rrp->tried[i] = 0;
         }
@@ -494,8 +506,8 @@ failed:
         ngx_http_upstream_rr_peers_wlock(peers);
     }
 
+    // 如果都死了，也没有办法了只能全部恢复尝试
     /* all peers failed, mark them as live for quick recovery */
-
     for (peer = peers->peer; peer; peer = peer->next) {
         peer->fails = 0;
     }
@@ -526,22 +538,29 @@ ngx_http_upstream_get_peer(ngx_http_upstream_rr_peer_data_t *rrp)
     p = 0;
 #endif
 
-    for (peer = rrp->peers->peer, i = 0;
-         peer;
-         peer = peer->next, i++)
+    // 通过Round Robin的算法获取一个peer
+    // 区分不同的对象: rrp->peers
+    //               rrp->peers->peer
+    //                           ....
+    for (peer = rrp->peers->peer, i = 0; peer; peer = peer->next, i++)
     {
 
+        // i ---> 如何通过: tried来记录呢?
+        // tried 的长度  i % bit_num(uintptr_t)
+        //              m: 对第 i 个bit
+        // 1. i对应的bit是否已经 trie 过了
         n = i / (8 * sizeof(uintptr_t));
         m = (uintptr_t) 1 << i % (8 * sizeof(uintptr_t));
-
         if (rrp->tried[n] & m) {
             continue;
         }
 
+        // 2. 如果 peer 挂了，则直接跳过
         if (peer->down) {
             continue;
         }
 
+        // 如果失败次数超过最大值，并且时间在 timeout 之类，则跳过
         if (peer->max_fails
             && peer->fails >= peer->max_fails
             && now - peer->checked <= peer->fail_timeout)
@@ -549,6 +568,7 @@ ngx_http_upstream_get_peer(ngx_http_upstream_rr_peer_data_t *rrp)
             continue;
         }
 
+        // 权重如何解决?
         peer->current_weight += peer->effective_weight;
         total += peer->effective_weight;
 
@@ -556,6 +576,7 @@ ngx_http_upstream_get_peer(ngx_http_upstream_rr_peer_data_t *rrp)
             peer->effective_weight++;
         }
 
+        // 选择权重最大的一个 peer
         if (best == NULL || peer->current_weight > best->current_weight) {
             best = peer;
             p = i;
@@ -568,13 +589,14 @@ ngx_http_upstream_get_peer(ngx_http_upstream_rr_peer_data_t *rrp)
 
     rrp->current = best;
 
+    // 标记: 第p个peer被尝试了
     n = p / (8 * sizeof(uintptr_t));
     m = (uintptr_t) 1 << p % (8 * sizeof(uintptr_t));
-
     rrp->tried[n] |= m;
 
     best->current_weight -= total;
-
+    
+    // 记录: best的时间checkout时间
     if (now - best->checked > best->fail_timeout) {
         best->checked = now;
     }
@@ -597,13 +619,14 @@ ngx_http_upstream_free_round_robin_peer(ngx_peer_connection_t *pc, void *data,
 
     /* TODO: NGX_PEER_KEEPALIVE */
 
+    // 如何释放 Peer 呢?
     peer = rrp->current;
 
     ngx_http_upstream_rr_peers_rlock(rrp->peers);
     ngx_http_upstream_rr_peer_lock(rrp->peers, peer);
 
+    // 如果只有一个peer, 则只考虑 conns
     if (rrp->peers->single) {
-
         peer->conns--;
 
         ngx_http_upstream_rr_peer_unlock(rrp->peers, peer);
@@ -616,11 +639,13 @@ ngx_http_upstream_free_round_robin_peer(ngx_peer_connection_t *pc, void *data,
     if (state & NGX_PEER_FAILED) {
         now = ngx_time();
 
+        // 记录失败的时间
         peer->fails++;
         peer->accessed = now;
         peer->checked = now;
-
+        
         if (peer->max_fails) {
+            // 记录有效的权重: 失败一次降权一次
             peer->effective_weight -= peer->weight / peer->max_fails;
 
             if (peer->fails >= peer->max_fails) {
@@ -633,6 +658,7 @@ ngx_http_upstream_free_round_robin_peer(ngx_peer_connection_t *pc, void *data,
                        "free rr peer failed: %p %i",
                        peer, peer->effective_weight);
 
+        // 控制最小权重
         if (peer->effective_weight < 0) {
             peer->effective_weight = 0;
         }
@@ -640,7 +666,7 @@ ngx_http_upstream_free_round_robin_peer(ngx_peer_connection_t *pc, void *data,
     } else {
 
         /* mark peer live if check passed */
-
+        // 正常情况下，恢复check passed
         if (peer->accessed < peer->checked) {
             peer->fails = 0;
         }

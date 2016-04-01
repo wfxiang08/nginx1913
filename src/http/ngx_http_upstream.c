@@ -5393,6 +5393,14 @@ ngx_http_upstream_cache_etag(ngx_http_request_t *r,
 #endif
 
 
+// 如何解析
+//upstream backend {
+//    server backend1.example.com       weight=5;
+//    server backend2.example.com:8080;
+//    server unix:/tmp/backend3;
+//    server backup1.example.com:8080   backup;
+//    server backup2.example.com:8080   backup;
+//}
 static char *
 ngx_http_upstream(ngx_conf_t *cf, ngx_command_t *cmd, void *dummy)
 {
@@ -5477,8 +5485,7 @@ ngx_http_upstream(ngx_conf_t *cf, ngx_command_t *cmd, void *dummy)
         }
     }
 
-    uscf->servers = ngx_array_create(cf->pool, 4,
-                                     sizeof(ngx_http_upstream_server_t));
+    uscf->servers = ngx_array_create(cf->pool, 4, sizeof(ngx_http_upstream_server_t));
     if (uscf->servers == NULL) {
         return NGX_CONF_ERROR;
     }
@@ -5668,12 +5675,15 @@ ngx_http_upstream_add(ngx_conf_t *cf, ngx_url_t *u, ngx_uint_t flags)
         }
     }
 
+    // Upstream Main Conf
+    // 获取Module对应的conf
     umcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_upstream_module);
-
+    
     uscfp = umcf->upstreams.elts;
 
     for (i = 0; i < umcf->upstreams.nelts; i++) {
 
+        // 1. 比较host, 如果host不同，则跳过
         if (uscfp[i]->host.len != u->host.len
             || ngx_strncasecmp(uscfp[i]->host.data, u->host.data, u->host.len)
                != 0)

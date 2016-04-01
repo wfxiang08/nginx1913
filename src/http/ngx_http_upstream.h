@@ -136,6 +136,7 @@ typedef struct {
 } ngx_http_upstream_local_t;
 
 
+// 
 typedef struct {
     ngx_http_upstream_srv_conf_t    *upstream;
 
@@ -299,7 +300,7 @@ struct ngx_http_upstream_s {
     ngx_http_upstream_handler_pt     read_event_handler;
     ngx_http_upstream_handler_pt     write_event_handler;
 
-    ngx_peer_connection_t            peer;
+    ngx_peer_connection_t            peer; 
 
     ngx_event_pipe_t                *pipe;
 
@@ -411,6 +412,7 @@ ngx_int_t ngx_http_upstream_hide_headers_hash(ngx_conf_t *cf,
     uscf->srv_conf[module.ctx_index]
 
 
+// Module的定义
 extern ngx_module_t        ngx_http_upstream_module;
 extern ngx_conf_bitmask_t  ngx_http_upstream_cache_method_mask[];
 extern ngx_conf_bitmask_t  ngx_http_upstream_ignore_headers_masks[];

@@ -41,7 +41,8 @@ struct ngx_shm_zone_s {
 // ngx_cycle_s 是什么概念?
 //
 struct ngx_cycle_s {
-    void                  ****conf_ctx;  // Context是啥玩意呢? 四级指针!!!!
+    // conf_ctx的结构: (void**)*conf_ctx[] 是一个conf_ctx的数组，每个元素是一个指针，指向一个乱七八糟的对象
+    void                  ****conf_ctx;
     ngx_pool_t               *pool;      // 负责内存的分配
 
     ngx_log_t                *log;

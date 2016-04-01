@@ -100,6 +100,7 @@ static ngx_core_module_t  ngx_http_module_ctx = {
 };
 
 
+// 关注: http 参数
 ngx_module_t  ngx_http_module = {
     NGX_MODULE_V1,
     &ngx_http_module_ctx,                  /* module context */
@@ -116,6 +117,7 @@ ngx_module_t  ngx_http_module = {
 };
 
 
+// 用于解析  http 参数
 static char *
 ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {

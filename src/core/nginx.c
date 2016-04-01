@@ -15,8 +15,12 @@ static ngx_int_t ngx_add_inherited_sockets(ngx_cycle_t *cycle);
 static ngx_int_t ngx_get_options(int argc, char *const *argv);
 static ngx_int_t ngx_process_options(ngx_cycle_t *cycle);
 static ngx_int_t ngx_save_argv(ngx_cycle_t *cycle, int argc, char *const *argv);
+
+// 创建一个 ngx_core_conf_t
 static void *ngx_core_module_create_conf(ngx_cycle_t *cycle);
+// 根据配置文件 更新: ngx_core_conf_t
 static char *ngx_core_module_init_conf(ngx_cycle_t *cycle, void *conf);
+
 static char *ngx_set_user(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *ngx_set_env(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *ngx_set_priority(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
@@ -149,6 +153,7 @@ static ngx_command_t  ngx_core_commands[] = {
 };
 
 
+// Core Module: 创建conf, 初始化 conf
 static ngx_core_module_t  ngx_core_module_ctx = {
     ngx_string("core"),
     ngx_core_module_create_conf,
@@ -1035,6 +1040,8 @@ ngx_core_module_create_conf(ngx_cycle_t *cycle)
 {
     ngx_core_conf_t  *ccf;
 
+    // 1. 如何创建一个 conf ?
+    //    首先Core Module 自己需要有自己的配置信息, 例如: core 对应: ngx_core_conf_t
     ccf = ngx_pcalloc(cycle->pool, sizeof(ngx_core_conf_t));
     if (ccf == NULL) {
         return NULL;
@@ -1051,6 +1058,7 @@ ngx_core_module_create_conf(ngx_cycle_t *cycle)
      *     ccf->cpu_affinity = NULL;
      */
 
+    // 2. 对自己的 conf 进行适度的初始化
     ccf->daemon = NGX_CONF_UNSET;
     ccf->master = NGX_CONF_UNSET;
     ccf->timer_resolution = NGX_CONF_UNSET_MSEC;

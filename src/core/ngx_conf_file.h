@@ -124,7 +124,7 @@ struct ngx_conf_s {
     ngx_conf_file_t      *conf_file;
     ngx_log_t            *log;
 
-    void                 *ctx;
+    void                 *ctx;  // 注意其中的Context
     ngx_uint_t            module_type;
     ngx_uint_t            cmd_type;
 

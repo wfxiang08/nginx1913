@@ -429,6 +429,7 @@ extern ngx_os_io_t  ngx_io;
 #define NGX_EVENT_CONF        0x02000000
 
 
+// http://nginx.org/en/docs/ngx_core_module.html#accept_mutex_delay
 typedef struct {
     ngx_uint_t    connections;
     ngx_uint_t    use;

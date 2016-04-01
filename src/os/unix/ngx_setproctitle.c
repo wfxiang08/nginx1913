@@ -8,7 +8,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 
-
+#define NGX_SETPROCTITLE_USES_ENV 1
 #if (NGX_SETPROCTITLE_USES_ENV)
 
 /*

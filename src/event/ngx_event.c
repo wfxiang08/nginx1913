@@ -81,7 +81,11 @@ ngx_atomic_t  *ngx_stat_waiting = &ngx_stat_waiting0;
 #endif
 
 
-
+//events {
+//  use epoll;
+//  worker_connections  1024;
+//}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static ngx_command_t  ngx_events_commands[] = {
 
     { ngx_string("events"),
@@ -120,7 +124,9 @@ ngx_module_t  ngx_events_module = {
 
 static ngx_str_t  event_core_name = ngx_string("event_core");
 
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 参考: http://nginx.org/en/docs/ngx_core_module.html#accept_mutex_delay
+//
 static ngx_command_t  ngx_event_core_commands[] = {
 
     { ngx_string("worker_connections"),
@@ -244,6 +250,9 @@ ngx_process_events_and_timers(ngx_cycle_t *cycle)
     delta = ngx_current_msec;
 
     // 处理各种Event
+    // 核心逻辑
+    // 具体实现取决于: 网络 io 模型， configure时选择
+    //
     (void) ngx_process_events(cycle, timer, flags);
 
     delta = ngx_current_msec - delta;
@@ -891,6 +900,11 @@ ngx_send_lowat(ngx_connection_t *c, size_t lowat)
 }
 
 
+// Command模块如何设计呢?
+//events {
+//  use epoll;
+//  worker_connections  1024;
+//}
 static char *
 ngx_events_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
@@ -908,16 +922,19 @@ ngx_events_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     ngx_event_max_module = ngx_count_modules(cf->cycle, NGX_EVENT_MODULE);
 
+    // 1. ctx实际上是一个指针
     ctx = ngx_pcalloc(cf->pool, sizeof(void *));
     if (ctx == NULL) {
         return NGX_CONF_ERROR;
     }
 
+    // 指向: 一个数组
     *ctx = ngx_pcalloc(cf->pool, ngx_event_max_module * sizeof(void *));
     if (*ctx == NULL) {
         return NGX_CONF_ERROR;
     }
-
+    
+    // 2. 结果可以通过: conf 传递进来，也可以传递出去
     *(void **) conf = ctx;
 
     for (i = 0; cf->cycle->modules[i]; i++) {
@@ -928,8 +945,8 @@ ngx_events_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         m = cf->cycle->modules[i]->ctx;
 
         if (m->create_conf) {
-            (*ctx)[cf->cycle->modules[i]->ctx_index] =
-                                                     m->create_conf(cf->cycle);
+            // 利用每个modules的 context 来创建 conf
+            (*ctx)[cf->cycle->modules[i]->ctx_index] = m->create_conf(cf->cycle);
             if ((*ctx)[cf->cycle->modules[i]->ctx_index] == NULL) {
                 return NGX_CONF_ERROR;
             }
@@ -957,8 +974,8 @@ ngx_events_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         m = cf->cycle->modules[i]->ctx;
 
         if (m->init_conf) {
-            rv = m->init_conf(cf->cycle,
-                              (*ctx)[cf->cycle->modules[i]->ctx_index]);
+            // 初始化 conf
+            rv = m->init_conf(cf->cycle, (*ctx)[cf->cycle->modules[i]->ctx_index]);
             if (rv != NGX_CONF_OK) {
                 return rv;
             }
@@ -981,6 +998,8 @@ ngx_event_connections(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     }
 
     value = cf->args->elts;
+    
+    // connections如何解析?
     ecf->connections = ngx_atoi(value[1].data, value[1].len);
     if (ecf->connections == (ngx_uint_t) NGX_ERROR) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
@@ -989,6 +1008,7 @@ ngx_event_connections(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
+    // 解析出来之后在什么地方使用?
     cf->cycle->connection_n = ecf->connections;
 
     return NGX_CONF_OK;

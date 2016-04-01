@@ -75,6 +75,10 @@ static char *ngx_http_upstream_keepalive(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
 
 
+//
+// upstream keepalive 如何工作呢?
+// 1. 关注参数: keepalive
+//
 static ngx_command_t  ngx_http_upstream_keepalive_commands[] = {
 
     { ngx_string("keepalive"),
@@ -103,6 +107,7 @@ static ngx_http_module_t  ngx_http_upstream_keepalive_module_ctx = {
 };
 
 
+// 这个不属于 Core Module
 ngx_module_t  ngx_http_upstream_keepalive_module = {
     NGX_MODULE_V1,
     &ngx_http_upstream_keepalive_module_ctx, /* module context */

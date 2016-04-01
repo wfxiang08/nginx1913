@@ -3,7 +3,7 @@ project(nginx_1_9_13)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-include_directories(src/core/ src/event/ src/http/modules/ src/http/v2/ src/os/unix/ src/stream/)
+include_directories(src/core/ src/event/ src/http/ src/http/modules/ src/http/v2/ src/os/unix/ src/stream/)
 
 set(SOURCE_FILES
     src/core/nginx.c

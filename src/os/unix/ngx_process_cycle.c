@@ -323,6 +323,7 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
         ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "worker cycle");
 
         // 2.1 处理 events & timers
+        //     核心逻辑
         ngx_process_events_and_timers(cycle);
 
         // 2.2 处理退出： terminate or quit
