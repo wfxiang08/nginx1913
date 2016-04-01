@@ -174,7 +174,7 @@ struct ngx_event_aio_s {
 
 #endif
 
-
+// 记录了各种: EventAction
 typedef struct {
     ngx_int_t  (*add)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
     ngx_int_t  (*del)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
@@ -187,6 +187,7 @@ typedef struct {
 
     ngx_int_t  (*notify)(ngx_event_handler_pt handler);
 
+    // 处理: EVents
     ngx_int_t  (*process_events)(ngx_cycle_t *cycle, ngx_msec_t timer,
                    ngx_uint_t flags);
 

@@ -27,11 +27,14 @@ ngx_preinit_modules(void)
 {
     ngx_uint_t  i;
 
+    // 给每个Module编号，设置name
     for (i = 0; ngx_modules[i]; i++) {
         ngx_modules[i]->index = i;
         ngx_modules[i]->name = ngx_module_names[i];
     }
 
+    // 记录: modules number
+    // 动态加载 Modules
     ngx_modules_n = i;
     ngx_max_module = ngx_modules_n + NGX_MAX_DYNAMIC_MODULES;
 
@@ -56,6 +59,7 @@ ngx_cycle_modules(ngx_cycle_t *cycle)
     ngx_memcpy(cycle->modules, ngx_modules,
                ngx_modules_n * sizeof(ngx_module_t *));
 
+    // 将: ngx_modules 拷贝到 cycle->modules 中
     cycle->modules_n = ngx_modules_n;
 
     return NGX_OK;
@@ -67,6 +71,7 @@ ngx_init_modules(ngx_cycle_t *cycle)
 {
     ngx_uint_t  i;
 
+    // 调用每个Module的初始化
     for (i = 0; cycle->modules[i]; i++) {
         if (cycle->modules[i]->init_module) {
             if (cycle->modules[i]->init_module(cycle) != NGX_OK) {

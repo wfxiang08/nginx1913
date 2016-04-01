@@ -91,6 +91,7 @@ ngx_event_expire_timers(void)
 
         ev->timedout = 1;
 
+        // 指定: rb tree中的Event
         ev->handler(ev);
     }
 }

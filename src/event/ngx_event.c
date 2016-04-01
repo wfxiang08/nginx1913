@@ -41,7 +41,11 @@ sig_atomic_t          ngx_event_timer_alarm;
 static ngx_uint_t     ngx_event_max_module;
 
 ngx_uint_t            ngx_event_flags;
-ngx_event_actions_t   ngx_event_actions;
+
+// 定义ModuleContext
+//    Module
+//    Commands, 例如: kqueue(各种网络io模型中的一个）
+ngx_event_actions_t   ngx_event_actions; // 全局变量: Event Actions
 
 
 static ngx_atomic_t   connection_counter = 1;
@@ -258,6 +262,7 @@ ngx_process_events_and_timers(ngx_cycle_t *cycle)
     }
 
     // 如果有显著的时间变化，例如: 1ms过去了
+    // 执行: rb tree中的事件
     if (delta) {
         ngx_event_expire_timers();
     }

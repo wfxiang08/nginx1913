@@ -341,7 +341,7 @@ main(int argc, char *const *argv)
 
     ngx_cycle = cycle;
 
-    // 读取nginx conf文件
+    // 获取: core_module对一个的conf
     ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
     // 设施什么意思?
@@ -979,6 +979,7 @@ ngx_process_options(ngx_cycle_t *cycle)
 #endif
     }
 
+    // 检查处理nginx的conf文件
     if (ngx_conf_file) {
         cycle->conf_file.len = ngx_strlen(ngx_conf_file);
         cycle->conf_file.data = ngx_conf_file;

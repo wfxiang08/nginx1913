@@ -73,11 +73,15 @@ static ngx_command_t  ngx_kqueue_commands[] = {
 };
 
 
+// 定义ModuleContext
+//    Module
+//    Commands
 ngx_event_module_t  ngx_kqueue_module_ctx = {
     &kqueue_name,
     ngx_kqueue_create_conf,                /* create configuration */
     ngx_kqueue_init_conf,                  /* init configuration */
 
+    // 定义各种actions
     {
         ngx_kqueue_add_event,              /* add an event */
         ngx_kqueue_del_event,              /* delete an event */
@@ -97,6 +101,7 @@ ngx_event_module_t  ngx_kqueue_module_ctx = {
 
 };
 
+// 定义module, 最终: nginx如何使用这些modules呢?
 ngx_module_t  ngx_kqueue_module = {
     NGX_MODULE_V1,
     &ngx_kqueue_module_ctx,                /* module context */
@@ -113,6 +118,7 @@ ngx_module_t  ngx_kqueue_module = {
 };
 
 
+// 模块初始化脚本
 static ngx_int_t
 ngx_kqueue_init(ngx_cycle_t *cycle, ngx_msec_t timer)
 {
@@ -221,6 +227,7 @@ ngx_kqueue_init(ngx_cycle_t *cycle, ngx_msec_t timer)
 
     ngx_io = ngx_os_io;
 
+    // 在: ngx_kqueue_init 中初始化
     ngx_event_actions = ngx_kqueue_module_ctx.actions;
 
     return NGX_OK;
@@ -533,6 +540,7 @@ ngx_kqueue_process_events(ngx_cycle_t *cycle, ngx_msec_t timer,
     ngx_log_debug2(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
                    "kevent timer: %M, changes: %d", timer, n);
 
+    // 处理各种Events
     events = kevent(ngx_kqueue, change_list, n, event_list, (int) nevents, tp);
 
     err = (events == -1) ? ngx_errno : 0;
@@ -573,7 +581,7 @@ ngx_kqueue_process_events(ngx_cycle_t *cycle, ngx_msec_t timer,
     }
 
     for (i = 0; i < events; i++) {
-
+        // 如何dump event呢?
         ngx_kqueue_dump_event(cycle->log, &event_list[i]);
 
         if (event_list[i].flags & EV_ERROR) {

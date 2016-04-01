@@ -82,7 +82,7 @@ struct ngx_cycle_s {
     ngx_str_t                 hostname;
 };
 
-
+// 最核心的conf
 typedef struct {
      ngx_flag_t               daemon;
      ngx_flag_t               master;
