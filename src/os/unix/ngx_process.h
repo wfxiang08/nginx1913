@@ -74,6 +74,7 @@ void ngx_debug_point(void);
 #endif
 
 
+// 全局的变量，保存用户输入的参数
 extern int            ngx_argc;
 extern char         **ngx_argv;
 extern char         **ngx_os_argv;
@@ -81,7 +82,7 @@ extern char         **ngx_os_argv;
 extern ngx_pid_t      ngx_pid;
 extern ngx_socket_t   ngx_channel;
 extern ngx_int_t      ngx_process_slot;
-extern ngx_int_t      ngx_last_process;
+extern ngx_int_t      ngx_last_process;  // 最后一个Spawned Process
 extern ngx_process_t  ngx_processes[NGX_MAX_PROCESSES];
 
 

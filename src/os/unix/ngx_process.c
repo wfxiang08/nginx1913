@@ -12,10 +12,10 @@
 
 
 typedef struct {
-    int     signo;
-    char   *signame;
-    char   *name;
-    void  (*handler)(int signo);
+    int     signo;              // 系统的signo
+    char   *signame;             // 信号名
+    char   *name;                // nginx内部的别名
+    void  (*handler)(int signo); // 处理方式
 } ngx_signal_t;
 
 
@@ -36,6 +36,10 @@ ngx_int_t        ngx_last_process;
 ngx_process_t    ngx_processes[NGX_MAX_PROCESSES];
 
 
+// 定义: nginx监听的信号
+//      对应系统的信号
+//      例如: kill -s HUB pid
+//
 ngx_signal_t  signals[] = {
     { ngx_signal_value(NGX_RECONFIGURE_SIGNAL),
       "SIG" ngx_value(NGX_RECONFIGURE_SIGNAL),
@@ -95,6 +99,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
         s = respawn;
 
     } else {
+        // 1. 寻找一个slot
         for (s = 0; s < ngx_last_process; s++) {
             if (ngx_processes[s].pid == -1) {
                 break;
@@ -183,6 +188,8 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
     ngx_process_slot = s;
 
 
+    // 启动一个新的进程
+    // 新的Worker进程做啥呢?
     pid = fork();
 
     switch (pid) {
@@ -194,6 +201,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
         return NGX_INVALID_PID;
 
     case 0:
+        // 子进程调用 proc 进入自己的 event loop中
         ngx_pid = ngx_getpid();
         proc(cycle, data);
         break;
@@ -204,6 +212,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
 
     ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "start %s %P", name, pid);
 
+    // 主进程记录信息
     ngx_processes[s].pid = pid;
     ngx_processes[s].exited = 0;
 
@@ -249,6 +258,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
         break;
     }
 
+    
     if (s == ngx_last_process) {
         ngx_last_process++;
     }
@@ -615,6 +625,9 @@ ngx_os_signal_process(ngx_cycle_t *cycle, char *name, ngx_int_t pid)
 {
     ngx_signal_t  *sig;
 
+    // 接受了信号，如何处理呢?
+    // 通过 signals table来实现 nginx的业务名(reload, stop等）---> signo的转换
+    //                                                          最终通过: kill 命令来传递消息(这个消息只发送给: master process
     for (sig = signals; sig->signo != 0; sig++) {
         if (ngx_strcmp(name, sig->name) == 0) {
             if (kill(pid, sig->signo) != -1) {

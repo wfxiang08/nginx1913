@@ -171,34 +171,41 @@ ngx_module_t  ngx_core_module = {
 };
 
 
+// 对应nginx的各种options
 static ngx_uint_t   ngx_show_help;
 static ngx_uint_t   ngx_show_version;
 static ngx_uint_t   ngx_show_configure;
 static u_char      *ngx_prefix;
 static u_char      *ngx_conf_file;
 static u_char      *ngx_conf_params;
-static char        *ngx_signal;
+static char        *ngx_signal;             // -s
 
 
 static char **ngx_os_environ;
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int ngx_cdecl
 main(int argc, char *const *argv)
 {
     ngx_buf_t        *b;
     ngx_log_t        *log;
     ngx_uint_t        i;
+    
+    // 两个数据结构的作用?
     ngx_cycle_t      *cycle, init_cycle;
+    
     ngx_conf_dump_t  *cd;
     ngx_core_conf_t  *ccf;
 
     ngx_debug_init();
 
+    // 1. 初始化 error code --> error str 的table
     if (ngx_strerror_init() != NGX_OK) {
         return 1;
     }
 
+    // 2. 解析options
     if (ngx_get_options(argc, argv) != NGX_OK) {
         return 1;
     }
@@ -219,6 +226,7 @@ main(int argc, char *const *argv)
     ngx_regex_init();
 #endif
 
+    // 3. 设置log, time
     ngx_pid = ngx_getpid();
 
     log = ngx_log_init(ngx_prefix);
@@ -236,23 +244,28 @@ main(int argc, char *const *argv)
      * ngx_process_options()
      */
 
+    // init_cycle && ngx_cycle 的作用
     ngx_memzero(&init_cycle, sizeof(ngx_cycle_t));
     init_cycle.log = log;
     ngx_cycle = &init_cycle;
 
+    // 4. 初始化nginx的内存管理(Pool)
     init_cycle.pool = ngx_create_pool(1024, log);
     if (init_cycle.pool == NULL) {
         return 1;
     }
-
+    
+    // 5. 将: argc, argv --> ngx_argc, ngx_argv(全局变量)
     if (ngx_save_argv(&init_cycle, argc, argv) != NGX_OK) {
         return 1;
     }
 
+    // 处理process prefix(什么东西? 进程名字?)
     if (ngx_process_options(&init_cycle) != NGX_OK) {
         return 1;
     }
 
+    // 读取 os 相关的配置, 例如: 文件句柄限制等
     if (ngx_os_init(log) != NGX_OK) {
         return 1;
     }
@@ -265,10 +278,14 @@ main(int argc, char *const *argv)
         return 1;
     }
 
+    // nginx如何继承Socket呢?
+    // 环境变量....
     if (ngx_add_inherited_sockets(&init_cycle) != NGX_OK) {
         return 1;
     }
 
+    // 初始化 modules
+    //       modules 实现方案
     if (ngx_preinit_modules() != NGX_OK) {
         return 1;
     }
@@ -283,7 +300,12 @@ main(int argc, char *const *argv)
         return 1;
     }
 
+    // nginx -t 
+    // 测试配置文件语法是否正确
+    // 能活到现在，似乎应该也没有什么问题
+    //
     if (ngx_test_config) {
+        // 汇报
         if (!ngx_quiet_mode) {
             ngx_log_stderr(0, "configuration file %s test is successful",
                            cycle->conf_file.data);
@@ -308,8 +330,10 @@ main(int argc, char *const *argv)
 
         return 0;
     }
-
+    
+    // 接受到nginx的 signal(单独处理)
     if (ngx_signal) {
+        // 给pid文件中保存的process 发送消息
         return ngx_signal_process(cycle, ngx_signal);
     }
 
@@ -317,18 +341,24 @@ main(int argc, char *const *argv)
 
     ngx_cycle = cycle;
 
+    // 读取nginx conf文件
     ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
+    // 设施什么意思?
     if (ccf->master && ngx_process == NGX_PROCESS_SINGLE) {
         ngx_process = NGX_PROCESS_MASTER;
     }
 
 #if !(NGX_WIN32)
 
+    // 安装signal handler
     if (ngx_init_signals(cycle->log) != NGX_OK) {
         return 1;
     }
 
+    // 如何Daemonize呢？ 标准的Linux系统编程
+    // Daemonize之后, parent直接exit
+    // 剩下的是child, child不再和console/stdin/stdout等关联，可以关闭terminal等
     if (!ngx_inherited && ccf->daemon) {
         if (ngx_daemon(cycle->log) != NGX_OK) {
             return 1;
@@ -343,6 +373,8 @@ main(int argc, char *const *argv)
 
 #endif
 
+    // 创建pid文件
+    // 这个文件用来做nginx的后续操作, 例如: reload等等
     if (ngx_create_pidfile(&ccf->pid, cycle->log) != NGX_OK) {
         return 1;
     }
@@ -360,6 +392,9 @@ main(int argc, char *const *argv)
 
     ngx_use_stderr = 0;
 
+    // 进入主循环
+    // 区分: nginx的工作模式
+    //      单进程 vs. 多进程
     if (ngx_process == NGX_PROCESS_SINGLE) {
         ngx_single_process_cycle(cycle);
 
@@ -433,7 +468,7 @@ ngx_show_version_info(void)
     }
 }
 
-
+// 如何继承Sockets呢?
 static ngx_int_t
 ngx_add_inherited_sockets(ngx_cycle_t *cycle)
 {
@@ -450,6 +485,7 @@ ngx_add_inherited_sockets(ngx_cycle_t *cycle)
     ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0,
                   "using inherited sockets from \"%s\"", inherited);
 
+    // 分配10个元素的空间
     if (ngx_array_init(&cycle->listening, cycle->pool, 10,
                        sizeof(ngx_listening_t))
         != NGX_OK)
@@ -457,9 +493,14 @@ ngx_add_inherited_sockets(ngx_cycle_t *cycle)
         return NGX_ERROR;
     }
 
+    // 字符串环境变量
     for (p = inherited, v = p; *p; p++) {
+        // 1212212:90900:121212
+        // 121212;121212;90000
+        // 通过字符串传递 fd
         if (*p == ':' || *p == ';') {
             s = ngx_atoi(v, p - v);
+            
             if (s == NGX_ERROR) {
                 ngx_log_error(NGX_LOG_EMERG, cycle->log, 0,
                               "invalid socket number \"%s\" in " NGINX_VAR
@@ -470,6 +511,7 @@ ngx_add_inherited_sockets(ngx_cycle_t *cycle)
 
             v = p + 1;
 
+            // 将这些 fds 添加到 listenning中
             ls = ngx_array_push(&cycle->listening);
             if (ls == NULL) {
                 return NGX_ERROR;
@@ -489,6 +531,8 @@ ngx_add_inherited_sockets(ngx_cycle_t *cycle)
 
     ngx_inherited = 1;
 
+    // 继承到socket fd(int)
+    // 如何将int fd 转换成为 socket呢?
     return ngx_set_inherited_sockets(cycle);
 }
 
@@ -701,13 +745,16 @@ ngx_get_options(int argc, char *const *argv)
 
     for (i = 1; i < argc; i++) {
 
+        // 例如: nginx -s stop/start/restart/reload
         p = (u_char *) argv[i];
 
+        // 1. 所有的options以 - 开头
         if (*p++ != '-') {
             ngx_log_stderr(0, "invalid option: \"%s\"", argv[i]);
             return NGX_ERROR;
         }
 
+        // 2. 所有的options都是单字符
         while (*p) {
 
             switch (*p++) {
@@ -783,17 +830,22 @@ ngx_get_options(int argc, char *const *argv)
                 return NGX_ERROR;
 
             case 's':
+                // -s
+                // 然后如何处理呢?
+                // -sstop
                 if (*p) {
                     ngx_signal = (char *) p;
 
                 } else if (argv[++i]) {
+                    // -s stop
                     ngx_signal = argv[i];
 
                 } else {
                     ngx_log_stderr(0, "option \"-s\" requires parameter");
                     return NGX_ERROR;
                 }
-
+                
+                // 检查nginx支持的signal
                 if (ngx_strcmp(ngx_signal, "stop") == 0
                     || ngx_strcmp(ngx_signal, "quit") == 0
                     || ngx_strcmp(ngx_signal, "reopen") == 0
@@ -821,6 +873,9 @@ ngx_get_options(int argc, char *const *argv)
 }
 
 
+//
+// 将: argc, argv --> ngx_argc, ngx_argv(全局变量)
+//
 static ngx_int_t
 ngx_save_argv(ngx_cycle_t *cycle, int argc, char *const *argv)
 {
@@ -891,7 +946,8 @@ ngx_process_options(ngx_cycle_t *cycle)
     } else {
 
 #ifndef NGX_PREFIX
-
+        
+        // 如何处理: Nginx Prefix, 无论如何选择一个prefix
         p = ngx_pnalloc(cycle->pool, NGX_MAX_PATH);
         if (p == NULL) {
             return NGX_ERROR;

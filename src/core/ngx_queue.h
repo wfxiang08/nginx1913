@@ -20,7 +20,17 @@ struct ngx_queue_s {
     ngx_queue_t  *next;
 };
 
-
+// 队列数据格式:
+//
+//  Element
+//      UserData
+//      ngx_queue_s
+//        ngx_queue_t  *prev;
+//        ngx_queue_t  *next;
+//
+// 对于队列: UserData是不可见的，所有的next, prev都是ngx_queue_t部分的信息，
+// 为了获取UserData 需要从: prev开始的字段 - offset, 例如: ngx_queue_data
+//
 #define ngx_queue_init(q)                                                     \
     (q)->prev = q;                                                            \
     (q)->next = q
@@ -39,7 +49,9 @@ struct ngx_queue_s {
 
 #define ngx_queue_insert_after   ngx_queue_insert_head
 
-
+// 
+// 队列如何添加元素, 将x添加到队列(以sentinel h来表示)
+//
 #define ngx_queue_insert_tail(h, x)                                           \
     (x)->prev = (h)->prev;                                                    \
     (x)->prev->next = x;                                                      \

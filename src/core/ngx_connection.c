@@ -147,15 +147,19 @@ ngx_set_inherited_sockets(ngx_cycle_t *cycle)
     int                        reuseport;
 #endif
 
+    // 如何把继承到
     ls = cycle->listening.elts;
     for (i = 0; i < cycle->listening.nelts; i++) {
 
+        // 1. 创建sockaddr
         ls[i].sockaddr = ngx_palloc(cycle->pool, NGX_SOCKADDRLEN);
         if (ls[i].sockaddr == NULL) {
             return NGX_ERROR;
         }
 
         ls[i].socklen = NGX_SOCKADDRLEN;
+        
+        // 2. 获取给定 fd 的socket的地址( ip:port ) 
         if (getsockname(ls[i].fd, ls[i].sockaddr, &ls[i].socklen) == -1) {
             ngx_log_error(NGX_LOG_CRIT, cycle->log, ngx_socket_errno,
                           "getsockname() of the inherited "
@@ -164,6 +168,7 @@ ngx_set_inherited_sockets(ngx_cycle_t *cycle)
             continue;
         }
 
+        // 3. socket的类型的单独处理, 关注: AF_UNIX, AF_INET
         switch (ls[i].sockaddr->sa_family) {
 
 #if (NGX_HAVE_INET6)
@@ -189,7 +194,7 @@ ngx_set_inherited_sockets(ngx_cycle_t *cycle)
             ngx_log_error(NGX_LOG_CRIT, cycle->log, ngx_socket_errno,
                           "the inherited socket #%d has "
                           "an unsupported protocol family", ls[i].fd);
-            ls[i].ignore = 1;
+            ls[i].ignore = 1; // 出错之后设置 ignore
             continue;
         }
 
@@ -198,6 +203,7 @@ ngx_set_inherited_sockets(ngx_cycle_t *cycle)
             return NGX_ERROR;
         }
 
+        // 获取socket的地址的长度
         len = ngx_sock_ntop(ls[i].sockaddr, ls[i].socklen,
                             ls[i].addr_text.data, len, 1);
         if (len == 0) {
@@ -206,10 +212,12 @@ ngx_set_inherited_sockets(ngx_cycle_t *cycle)
 
         ls[i].addr_text.len = len;
 
+        // 设置: backlog
         ls[i].backlog = NGX_LISTEN_BACKLOG;
 
         olen = sizeof(int);
 
+        // 获取Socket的optinons
         if (getsockopt(ls[i].fd, SOL_SOCKET, SO_TYPE, (void *) &ls[i].type,
                        &olen)
             == -1)

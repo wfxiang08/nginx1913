@@ -948,6 +948,7 @@ ngx_create_pidfile(ngx_str_t *name, ngx_log_t *log)
     ngx_file_t  file;
     u_char      pid[NGX_INT64_LEN + 2];
 
+    // 1. 只记录: Master Process的Pid, 其他的pid不管
     if (ngx_process > NGX_PROCESS_MASTER) {
         return NGX_OK;
     }
@@ -959,6 +960,9 @@ ngx_create_pidfile(ngx_str_t *name, ngx_log_t *log)
 
     create = ngx_test_config ? NGX_FILE_CREATE_OR_OPEN : NGX_FILE_TRUNCATE;
 
+    // 打开指定的文件
+    // 这里的data是不是一个普通的null-terminated string?
+    //
     file.fd = ngx_open_file(file.name.data, NGX_FILE_RDWR,
                             create, NGX_FILE_DEFAULT_ACCESS);
 
@@ -969,6 +973,7 @@ ngx_create_pidfile(ngx_str_t *name, ngx_log_t *log)
     }
 
     if (!ngx_test_config) {
+        // 写入pid的信息
         len = ngx_snprintf(pid, NGX_INT64_LEN + 2, "%P%N", ngx_pid) - pid;
 
         if (ngx_write_file(&file, pid, len, 0) == NGX_ERROR) {
@@ -1020,6 +1025,7 @@ ngx_signal_process(ngx_cycle_t *cycle, char *sig)
     file.name = ccf->pid;
     file.log = cycle->log;
 
+    // 1. 读取 pid 文件
     file.fd = ngx_open_file(file.name.data, NGX_FILE_RDONLY,
                             NGX_FILE_OPEN, NGX_FILE_DEFAULT_ACCESS);
 
@@ -1051,6 +1057,7 @@ ngx_signal_process(ngx_cycle_t *cycle, char *sig)
         return 1;
     }
 
+    // 2. 将 sig 发送给 pid(消息目前只发送给master process)
     return ngx_os_signal_process(cycle, sig, pid);
 
 }

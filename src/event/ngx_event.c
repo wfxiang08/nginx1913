@@ -239,6 +239,7 @@ ngx_process_events_and_timers(ngx_cycle_t *cycle)
 
     delta = ngx_current_msec;
 
+    // 处理各种Event
     (void) ngx_process_events(cycle, timer, flags);
 
     delta = ngx_current_msec - delta;
@@ -246,16 +247,23 @@ ngx_process_events_and_timers(ngx_cycle_t *cycle)
     ngx_log_debug1(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
                    "timer delta: %M", delta);
 
+    // 这里有两个: event_queue
+    //            ngx_posted_accept_events
+    //            ngx_posted_events
+    // 1. 执行: ngx_posted_accept_events
     ngx_event_process_posted(cycle, &ngx_posted_accept_events);
 
     if (ngx_accept_mutex_held) {
         ngx_shmtx_unlock(&ngx_accept_mutex);
     }
 
+    // 如果有显著的时间变化，例如: 1ms过去了
     if (delta) {
         ngx_event_expire_timers();
     }
 
+    // 2. 执行: ngx_posted_events
+    //
     ngx_event_process_posted(cycle, &ngx_posted_events);
 }
 

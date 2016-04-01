@@ -34,6 +34,7 @@ ngx_strerror(ngx_err_t err, u_char *errstr, size_t size)
 {
     ngx_str_t  *msg;
 
+    // 将Error Code转换成为 Error String
     msg = ((ngx_uint_t) err < NGX_SYS_NERR) ? &ngx_sys_errlist[err]:
                                               &ngx_unknown_error;
     size = ngx_min(size, msg->len);
@@ -63,6 +64,8 @@ ngx_strerror_init(void)
     }
 
     for (err = 0; err < NGX_SYS_NERR; err++) {
+        // strerror: 在什么地方定义?
+        // 将系统的字符串转换成为 nginx_str_t 格式
         msg = strerror(err);
         len = ngx_strlen(msg);
 

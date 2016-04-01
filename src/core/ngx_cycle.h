@@ -26,6 +26,9 @@ typedef struct ngx_shm_zone_s  ngx_shm_zone_t;
 
 typedef ngx_int_t (*ngx_shm_zone_init_pt) (ngx_shm_zone_t *zone, void *data);
 
+//
+// 共享内存
+//
 struct ngx_shm_zone_s {
     void                     *data;
     ngx_shm_t                 shm;
@@ -34,10 +37,12 @@ struct ngx_shm_zone_s {
     ngx_uint_t                noreuse;  /* unsigned  noreuse:1; */
 };
 
-
+//
+// ngx_cycle_s 是什么概念?
+//
 struct ngx_cycle_s {
-    void                  ****conf_ctx;
-    ngx_pool_t               *pool;
+    void                  ****conf_ctx;  // Context是啥玩意呢? 四级指针!!!!
+    ngx_pool_t               *pool;      // 负责内存的分配
 
     ngx_log_t                *log;
     ngx_log_t                 new_log;

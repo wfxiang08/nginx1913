@@ -15,6 +15,10 @@
 
 typedef struct ngx_listening_s  ngx_listening_t;
 
+// 如何继承Socket呢?
+// 1. fd
+// 2. 通过fd获取socket的其他属性
+//
 struct ngx_listening_s {
     ngx_socket_t        fd;
 

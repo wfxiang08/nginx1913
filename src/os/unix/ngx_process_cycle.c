@@ -116,6 +116,8 @@ ngx_master_process_cycle(ngx_cycle_t *cycle)
         exit(2);
     }
 
+    
+    // 设置 process name
     p = ngx_cpymem(title, master_process, sizeof(master_process) - 1);
     for (i = 0; i < ngx_argc; i++) {
         *p++ = ' ';
@@ -127,8 +129,12 @@ ngx_master_process_cycle(ngx_cycle_t *cycle)
 
     ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
+    // 1. 启动: worker process
+    //    主要流程
     ngx_start_worker_processes(cycle, ccf->worker_processes,
                                NGX_PROCESS_RESPAWN);
+    // 2. 启动 cache manager
+    //    似乎是新东西
     ngx_start_cache_manager_processes(cycle, 0);
 
     ngx_new_binary = 0;
@@ -160,6 +166,7 @@ ngx_master_process_cycle(ngx_cycle_t *cycle)
 
         ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "sigsuspend");
 
+        // 注意上面的 set 的初始化，其中一个重要的信息就是: ALARM, 用于控制delay
         sigsuspend(&set);
 
         ngx_time_update();
@@ -179,6 +186,7 @@ ngx_master_process_cycle(ngx_cycle_t *cycle)
         }
 
         if (ngx_terminate) {
+            // 如何终止nginx呢?
             if (delay == 0) {
                 delay = 50;
             }
@@ -190,6 +198,10 @@ ngx_master_process_cycle(ngx_cycle_t *cycle)
 
             sigio = ccf->worker_processes + 2 /* cache processes */;
 
+            //
+            // 如果时间太长，则直接KILL ALL
+            // 如果超过1s，则删除所有的请求
+            //
             if (delay > 1000) {
                 ngx_signal_worker_processes(cycle, SIGKILL);
             } else {
@@ -294,6 +306,7 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
         exit(2);
     }
 
+    // 1. 调用所有的: modules的 init_process
     for (i = 0; cycle->modules[i]; i++) {
         if (cycle->modules[i]->init_process) {
             if (cycle->modules[i]->init_process(cycle) == NGX_ERROR) {
@@ -303,11 +316,16 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
         }
     }
 
-    for ( ;; ) {
+    // 为了查看代码方便
+    int true_value = 1;
+    // for ( ;; ) {
+    while(true_value) {
         ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "worker cycle");
 
+        // 2.1 处理 events & timers
         ngx_process_events_and_timers(cycle);
 
+        // 2.2 处理退出： terminate or quit
         if (ngx_terminate || ngx_quit) {
 
             for (i = 0; cycle->modules[i]; i++) {
@@ -319,6 +337,7 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
             ngx_master_process_exit(cycle);
         }
 
+        // 2.2 如果收到 reconfigure 信号，则重新初始化: cycle
         if (ngx_reconfigure) {
             ngx_reconfigure = 0;
             ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "reconfiguring");
@@ -329,9 +348,11 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
                 continue;
             }
 
+            // 全局变量的使用
             ngx_cycle = cycle;
         }
 
+        // 2.3 如何处理 logs
         if (ngx_reopen) {
             ngx_reopen = 0;
             ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "reopening logs");
@@ -354,7 +375,9 @@ ngx_start_worker_processes(ngx_cycle_t *cycle, ngx_int_t n, ngx_int_t type)
     ch.command = NGX_CMD_OPEN_CHANNEL;
 
     for (i = 0; i < n; i++) {
-
+        // 启动Worker Process
+        // 每个子进程做的事情: ngx_worker_process_cycle
+        //
         ngx_spawn_process(cycle, ngx_worker_process_cycle,
                           (void *) (intptr_t) i, "worker process", type);
 
@@ -393,6 +416,7 @@ ngx_start_cache_manager_processes(ngx_cycle_t *cycle, ngx_uint_t respawn)
         return;
     }
 
+    // loader & manager processor
     ngx_spawn_process(cycle, ngx_cache_manager_process_cycle,
                       &ngx_cache_manager_ctx, "cache manager process",
                       respawn ? NGX_PROCESS_JUST_RESPAWN : NGX_PROCESS_RESPAWN);
@@ -723,19 +747,23 @@ ngx_master_process_exit(ngx_cycle_t *cycle)
 }
 
 
+// Worker Process到底在做啥呢?
 static void
 ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 {
     ngx_int_t worker = (intptr_t) data;
 
+    // Worker Process的编号初始值
     ngx_process = NGX_PROCESS_WORKER;
     ngx_worker = worker;
 
+    // 初始化worker process
     ngx_worker_process_init(cycle, worker);
 
     ngx_setproctitle("worker process");
 
-    for ( ;; ) {
+    int true_value = 1;
+    while (true_value) {
 
         if (ngx_exiting) {
             ngx_event_cancel_timers();
@@ -750,8 +778,10 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 
         ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "worker cycle");
 
+        // 正常处理: events & timers
         ngx_process_events_and_timers(cycle);
 
+        // 处理其他的控制信号
         if (ngx_terminate) {
             ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "exiting");
 
@@ -771,6 +801,9 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
             }
         }
 
+        //
+        // nginx的各种日志如何保证写同步呢?
+        //
         if (ngx_reopen) {
             ngx_reopen = 0;
             ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "reopening logs");
