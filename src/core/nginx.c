@@ -37,6 +37,7 @@ static ngx_conf_enum_t  ngx_debug_points[] = {
 };
 
 
+// NGINX定义这么多的Commands干嘛呢?
 static ngx_command_t  ngx_core_commands[] = {
 
     { ngx_string("daemon"),
@@ -155,6 +156,9 @@ static ngx_core_module_t  ngx_core_module_ctx = {
 };
 
 
+//
+// nginx本身也是一个module, 会处理一些 os, 进程数等相关的参数的解析
+//
 ngx_module_t  ngx_core_module = {
     NGX_MODULE_V1,
     &ngx_core_module_ctx,                  /* module context */
@@ -185,8 +189,10 @@ static char **ngx_os_environ;
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int ngx_cdecl
-main(int argc, char *const *argv)
+//
+// 入口函数 >>>>
+//
+int ngx_cdecl  main(int argc, char *const *argv)
 {
     ngx_buf_t        *b;
     ngx_log_t        *log;
@@ -278,7 +284,7 @@ main(int argc, char *const *argv)
         return 1;
     }
 
-    // nginx如何继承Socket呢?
+    // 6. nginx如何继承Socket呢?
     // 环境变量....
     if (ngx_add_inherited_sockets(&init_cycle) != NGX_OK) {
         return 1;
@@ -286,10 +292,18 @@ main(int argc, char *const *argv)
 
     // 初始化 modules
     //       modules 实现方案
+    // ngx_modules 分为两部分
+    //             静态部分，通过 ./configure来生成
+    //             动态部分, 通过 NGX_HAVE_DLOPEN 来控制是否允许动态加载Modules
+    // 初始哈modules的name/index
+    //
     if (ngx_preinit_modules() != NGX_OK) {
         return 1;
     }
 
+    // 7. 在这个不起眼的地方，做了很多事情
+    // cycle的初始化, modules的配置的读取 ...
+    // 为什么要创建一个新的cyle, 之前旧的cycle有什么不一样的地方呢?
     cycle = ngx_init_cycle(&init_cycle);
     if (cycle == NULL) {
         if (ngx_test_config) {
@@ -373,7 +387,7 @@ main(int argc, char *const *argv)
 
 #endif
 
-    // 创建pid文件
+    // 8. 创建pid文件
     // 这个文件用来做nginx的后续操作, 例如: reload等等
     if (ngx_create_pidfile(&ccf->pid, cycle->log) != NGX_OK) {
         return 1;
@@ -392,7 +406,7 @@ main(int argc, char *const *argv)
 
     ngx_use_stderr = 0;
 
-    // 进入主循环
+    // 9. 进入主循环
     // 区分: nginx的工作模式
     //      单进程 vs. 多进程
     if (ngx_process == NGX_PROCESS_SINGLE) {
@@ -1474,10 +1488,9 @@ ngx_get_cpu_affinity(ngx_uint_t n)
 
 
 static char *
-ngx_set_worker_processes(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
-{
-    ngx_str_t        *value;
-    ngx_core_conf_t  *ccf;
+ngx_set_worker_processes(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+    ngx_str_t *value;
+    ngx_core_conf_t *ccf;
 
     ccf = (ngx_core_conf_t *) conf;
 
@@ -1499,9 +1512,15 @@ ngx_set_worker_processes(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     }
 
     return NGX_CONF_OK;
+
 }
 
+#define NGX_HAVE_DLOPEN 1
 
+
+// 如何动态加载modules呢?
+// 这个应该是一个.so文件吧?
+//
 static char *
 ngx_load_module(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
@@ -1530,6 +1549,7 @@ ngx_load_module(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
+    //1.  打开动态链接库
     handle = ngx_dlopen(file.data);
     if (handle == NULL) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
@@ -1541,6 +1561,11 @@ ngx_load_module(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     cln->handler = ngx_unload_module;
     cln->data = handle;
 
+    // 动态链接库中定义的变量可以直接读取出来，和一致类型的变量一样
+    // 读取配置文件中的:
+    //               ngx_modules
+    //               ngx_module_names
+    //               ngx_module_order
     modules = ngx_dlsym(handle, "ngx_modules");
     if (modules == NULL) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
@@ -1559,6 +1584,7 @@ ngx_load_module(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     order = ngx_dlsym(handle, "ngx_module_order");
 
+    // 添加modules
     for (i = 0; modules[i]; i++) {
         module = modules[i];
         module->name = names[i];

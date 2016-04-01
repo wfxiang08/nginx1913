@@ -36,6 +36,7 @@ static ngx_connection_t  dumb;
 ngx_cycle_t *
 ngx_init_cycle(ngx_cycle_t *old_cycle)
 {
+    // 为什么分为新的和旧的呢?
     void                *rv;
     char               **senv, **env;
     ngx_uint_t           i, n;
@@ -64,18 +65,21 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
 
     log = old_cycle->log;
 
+    // 1. 创建一个pool
     pool = ngx_create_pool(NGX_CYCLE_POOL_SIZE, log);
     if (pool == NULL) {
         return NULL;
     }
     pool->log = log;
 
+    // 2. 创建一个cycle
     cycle = ngx_pcalloc(pool, sizeof(ngx_cycle_t));
     if (cycle == NULL) {
         ngx_destroy_pool(pool);
         return NULL;
     }
 
+    // 为什么要创建一个新的cycle呢?
     cycle->pool = pool;
     cycle->log = log;
     cycle->old_cycle = old_cycle;
@@ -212,6 +216,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     ngx_strlow(cycle->hostname.data, (u_char *) hostname, cycle->hostname.len);
 
 
+    // XXX: 拷贝modules到 cycle中
     if (ngx_cycle_modules(cycle) != NGX_OK) {
         ngx_destroy_pool(pool);
         return NULL;
@@ -225,6 +230,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
 
         module = cycle->modules[i]->ctx;
 
+        // 创建: conf
         if (module->create_conf) {
             rv = module->create_conf(cycle);
             if (rv == NULL) {
@@ -271,6 +277,11 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
         return NULL;
     }
 
+    
+    // 配置文件的解析的入口:
+    // 1. ngx_conf_parse, 而不是: conf module
+    //                           conf module 作为一个 module 本身不具备把控全局的能力，只是他特别处理 include 指令，需要调用其他的 modules
+    // 
     if (ngx_conf_parse(&conf, &cycle->conf_file) != NGX_CONF_OK) {
         environ = senv;
         ngx_destroy_cycle_pools(&conf);
@@ -282,13 +293,20 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
                        cycle->conf_file.data);
     }
 
+    // module 有两种该类型
+    //                   NGX_CONF_MODULE
+    //                   NGX_CORE_MODULE
+    //
     for (i = 0; cycle->modules[i]; i++) {
+        // 配置 module 的使命完成，下面需要调用 core module的  init_conf
         if (cycle->modules[i]->type != NGX_CORE_MODULE) {
             continue;
         }
 
+        // 1. 寻找: Core Module
         module = cycle->modules[i]->ctx;
 
+        // 2. 调用: init_conf
         if (module->init_conf) {
             if (module->init_conf(cycle,
                                   cycle->conf_ctx[cycle->modules[i]->index])

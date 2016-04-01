@@ -255,10 +255,11 @@ struct ngx_module_s {
     ngx_uint_t            version;
     const char           *signature;
 
-    void                 *ctx;
-    ngx_command_t        *commands;
+    void                 *ctx;       // 模块相关的Context, 保存所需要的数据
+    ngx_command_t        *commands;  // Commands
     ngx_uint_t            type;
 
+    // 还有在生命周期的各个部分中所做的事情
     ngx_int_t           (*init_master)(ngx_log_t *log);
 
     ngx_int_t           (*init_module)(ngx_cycle_t *cycle);

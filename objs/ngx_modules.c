@@ -53,14 +53,20 @@ extern ngx_module_t  ngx_http_copy_filter_module;
 extern ngx_module_t  ngx_http_range_body_filter_module;
 extern ngx_module_t  ngx_http_not_modified_filter_module;
 
+//
+// 根据./configure来生成nginx_modules(静态加载模块)
+// 现在似乎还支持动态加载modules
+//
+// module的顺序在auto等文件中指定
+//
 ngx_module_t *ngx_modules[] = {
-    &ngx_core_module,
+    &ngx_core_module,  // nginx本身也是一个 ngx_core_module, 定义了很多的commands
     &ngx_errlog_module,
     &ngx_conf_module,
     &ngx_regex_module,
     &ngx_events_module,
     &ngx_event_core_module,
-    &ngx_kqueue_module,
+    &ngx_kqueue_module,   // 在Mac OS下默认选择: kqueue 异步io模块
     &ngx_http_module,
     &ngx_http_core_module,
     &ngx_http_log_module,

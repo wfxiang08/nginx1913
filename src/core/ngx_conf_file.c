@@ -16,7 +16,7 @@ static void ngx_conf_flush_files(ngx_cycle_t *cycle);
 
 
 static ngx_command_t  ngx_conf_commands[] = {
-
+    // include command非常重要，会触发各种配置的读取，以及各种 module的初始化
     { ngx_string("include"),
       NGX_ANY_CONF|NGX_CONF_TAKE1,
       ngx_conf_include,
@@ -27,7 +27,8 @@ static ngx_command_t  ngx_conf_commands[] = {
       ngx_null_command
 };
 
-
+// 定义： ngx_conf_module
+// 在 ngx_modules.c 文件中被引用
 ngx_module_t  ngx_conf_module = {
     NGX_MODULE_V1,
     NULL,                                  /* module context */
@@ -97,6 +98,9 @@ ngx_conf_param(ngx_conf_t *cf)
 }
 
 
+//
+// 如何parse nginx的配置文件呢?
+//
 char *
 ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
 {
@@ -203,6 +207,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
     }
 
 
+    // 遍历 ngxin的配置文件
     for ( ;; ) {
         rc = ngx_conf_read_token(cf);
 
@@ -280,6 +285,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
         }
 
 
+        // 处理nginx的conf
         rc = ngx_conf_handler(cf, rc);
 
         if (rc == NGX_ERROR) {
@@ -329,13 +335,17 @@ ngx_conf_handler(ngx_conf_t *cf, ngx_int_t last)
 
     found = 0;
 
+    // 1. 遍历: cycle中的每一个modules
     for (i = 0; cf->cycle->modules[i]; i++) {
 
+        // 2. 获取所有的Commands
         cmd = cf->cycle->modules[i]->commands;
         if (cmd == NULL) {
             continue;
         }
 
+        // 3. 获取和 cf 参数一致的 command
+        //    也就是nginx的每一个配置都对应一个command
         for ( /* void */ ; cmd->name.len; cmd++) {
 
             if (name->len != cmd->name.len) {
