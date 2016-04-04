@@ -234,6 +234,7 @@ ngx_http_v2_init(ngx_event_t *rev)
         return;
     }
 
+    // 1. 初始化: http v2相关的东西
     h2c->connection = c;
     h2c->http_connection = hc;
 

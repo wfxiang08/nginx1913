@@ -205,8 +205,7 @@ ngx_module_t  ngx_http_v2_module = {
 
 static ngx_http_variable_t  ngx_http_v2_vars[] = {
 
-    { ngx_string("http2"), NULL,
-      ngx_http_v2_variable, 0, 0, 0 },
+    { ngx_string("http2"), NULL,  ngx_http_v2_variable, 0, 0, 0 },   // 如何从Request中读取: http 2的协议 variable: h2, h2c, ""
 
     { ngx_null_string, NULL, NULL, 0, 0, 0 }
 };
@@ -236,6 +235,8 @@ ngx_http_v2_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data)
 {
 
+    // 识别: http v2的协议
+    //      h2 或者  h2c 或者为空
     if (r->stream) {
 #if (NGX_HTTP_SSL)
 
@@ -250,6 +251,7 @@ ngx_http_v2_variable(ngx_http_request_t *r,
         }
 
 #endif
+        // 如果有stream, 则默认当前就是: http 2连接，应该是彻底不支持spdy
         v->len = sizeof("h2c") - 1;
         v->valid = 1;
         v->no_cacheable = 0;
@@ -272,6 +274,7 @@ ngx_http_v2_module_init(ngx_cycle_t *cycle)
 }
 
 
+// 创建: ngx_http_v2_main_conf_t
 static void *
 ngx_http_v2_create_main_conf(ngx_conf_t *cf)
 {
@@ -438,6 +441,7 @@ ngx_http_v2_streams_index_mask(ngx_conf_t *cf, void *post, void *data)
 }
 
 
+// 检查: chunk_size, 设置最大的size
 static char *
 ngx_http_v2_chunk_size(ngx_conf_t *cf, void *post, void *data)
 {
@@ -450,6 +454,7 @@ ngx_http_v2_chunk_size(ngx_conf_t *cf, void *post, void *data)
         return NGX_CONF_ERROR;
     }
 
+    // 最大为: 16k
     if (*sp > NGX_HTTP_V2_MAX_FRAME_SIZE) {
         *sp = NGX_HTTP_V2_MAX_FRAME_SIZE;
     }
@@ -458,6 +463,7 @@ ngx_http_v2_chunk_size(ngx_conf_t *cf, void *post, void *data)
 }
 
 
+// 不再支持: spdy参数，如果指定了，则打印Warning
 static char *
 ngx_http_v2_spdy_deprecated(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {

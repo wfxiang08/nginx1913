@@ -313,6 +313,7 @@ ngx_http_init_connection(ngx_connection_t *c)
     c->write->handler = ngx_http_empty_handler;
 
 #if (NGX_HTTP_V2)
+    // 如果支持: http2协议，则添加: ngx_http_v2_init
     if (hc->addr_conf->http2) {
         rev->handler = ngx_http_v2_init;
     }
@@ -3513,6 +3514,8 @@ ngx_http_log_request(ngx_http_request_t *r)
 }
 
 
+// 如何关闭?
+// 在处理完毕当前的request之后，告诉client close connection, 也算是一种优雅的处理方式
 void
 ngx_http_close_connection(ngx_connection_t *c)
 {

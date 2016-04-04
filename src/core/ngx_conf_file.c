@@ -101,8 +101,7 @@ ngx_conf_param(ngx_conf_t *cf)
 //
 // 如何parse nginx的配置文件呢?
 //
-char *
-ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
+char * ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
 {
     char             *rv;
     u_char           *p;
@@ -123,10 +122,14 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
     prev = NULL;
 #endif
 
+    // rv = ngx_conf_parse(cf, NULL);
+    // rv = ngx_conf_parse(cf, filename);
+    // filename 为 NULL 或者其他 有什么区别呢?
+    //
     if (filename) {
 
         /* open configuration file */
-
+        
         fd = ngx_open_file(filename->data, NGX_FILE_RDONLY, NGX_FILE_OPEN, 0);
         if (fd == NGX_INVALID_FILE) {
             ngx_conf_log_error(NGX_LOG_EMERG, cf, ngx_errno,
@@ -264,7 +267,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
              * the custom handler, i.e., that is used in the http's
              * "types { ... }" directive
              */
-
+            
             if (rc == NGX_CONF_BLOCK_START) {
                 ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "unexpected \"{\"");
                 goto failed;
@@ -284,7 +287,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
             goto failed;
         }
 
-
+        // 正常进行Parse
         // 处理nginx的conf
         rc = ngx_conf_handler(cf, rc);
 
@@ -331,6 +334,7 @@ ngx_conf_handler(ngx_conf_t *cf, ngx_int_t last)
     ngx_str_t      *name;
     ngx_command_t  *cmd;
 
+    // 在当前行遇到的参数
     name = cf->args->elts;
 
     found = 0;
@@ -347,7 +351,8 @@ ngx_conf_handler(ngx_conf_t *cf, ngx_int_t last)
         // 3. 获取和 cf 参数一致的 command
         //    也就是nginx的每一个配置都对应一个command
         for ( /* void */ ; cmd->name.len; cmd++) {
-
+            
+            // 首先: command的name和当前token的name一致
             if (name->len != cmd->name.len) {
                 continue;
             }
@@ -494,6 +499,7 @@ ngx_conf_read_token(ngx_conf_t *cf)
     s_quoted = 0;
     d_quoted = 0;
 
+    // 参数个数为0，当前位置
     cf->args->nelts = 0;
     b = cf->conf_file->buffer;
     dump = cf->conf_file->dump;

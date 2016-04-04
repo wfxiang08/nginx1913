@@ -17,7 +17,7 @@
 #include <ngx_thread_pool.h>
 #endif
 
-
+#define NGX_HTTP_V2 1
 #define NGX_HTTP_GZIP_PROXIED_OFF       0x0002
 #define NGX_HTTP_GZIP_PROXIED_EXPIRED   0x0004
 #define NGX_HTTP_GZIP_PROXIED_NO_CACHE  0x0008

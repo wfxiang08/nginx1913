@@ -252,6 +252,9 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     senv = environ;
 
 
+    // 
+    // XXX: 注意 ngx_conf_t  conf 的使用场景
+    //
     ngx_memzero(&conf, sizeof(ngx_conf_t));
     /* STUB: init array ? */
     conf.args = ngx_array_create(pool, 10, sizeof(ngx_str_t));
@@ -267,8 +270,8 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     }
 
 
-    conf.ctx = cycle->conf_ctx;
-    conf.cycle = cycle;
+    conf.ctx = cycle->conf_ctx;   // conf的 ctx 意义
+    conf.cycle = cycle;           // cycle等参数
     conf.pool = pool;
     conf.log = log;
     conf.module_type = NGX_CORE_MODULE;
@@ -278,6 +281,8 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     log->log_level = NGX_LOG_DEBUG_ALL;
 #endif
 
+    // rv = ngx_conf_parse(cf, NULL);
+    //
     if (ngx_conf_param(&conf) != NGX_CONF_OK) {
         environ = senv;
         ngx_destroy_cycle_pools(&conf);
@@ -429,6 +434,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     pool->log = &cycle->new_log;
 
 
+    // 这一块的工作原理是啥呢?
     /* create shared memory */
 
     part = &cycle->shared_memory.part;

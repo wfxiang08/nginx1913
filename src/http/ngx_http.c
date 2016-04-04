@@ -10,6 +10,8 @@
 #include <ngx_http.h>
 
 
+#define NGX_HTTP_V2 1
+
 static char *ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static ngx_int_t ngx_http_init_phases(ngx_conf_t *cf,
     ngx_http_core_main_conf_t *cmcf);
